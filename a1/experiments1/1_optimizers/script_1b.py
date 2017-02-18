@@ -1,10 +1,10 @@
 
   # modify paths to match your own set-up
 # homepath = "/Users/dale/"
-homepath = "/Users/zhangchi/"
-datapath = homepath + "Desktop/DeepLearning-Assignment/a1/data1"
+homepath = "/Users/zhangchi/Desktop/"
+datapath = homepath + "DeepLearning-Assignment/a1/data1"
 # datapath = homepath + "Documents/cmput656/a1/data1"
-srcpath = homepath + "Desktop/DeepLearning-Assignment/a1"
+srcpath = homepath + "DeepLearning-Assignment/a1"
 # srcpath = homepath + "Documents/cmput656/a1"
 import sys
 sys.path.append(srcpath)
