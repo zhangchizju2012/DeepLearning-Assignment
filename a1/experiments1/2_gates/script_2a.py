@@ -142,11 +142,9 @@ def methoddef(name, color, model, optimizer,
                  meas.meas_time("train_time") ]
   return method
 
+# leaky Relu
 def my_gate(z):
-  if z >= 0:
-    return z
-  else:
-    return 0.1 * z
+  return tf.maximum(0.1*z,z)
 
 # define methods
 
