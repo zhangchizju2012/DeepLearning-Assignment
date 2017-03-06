@@ -21,7 +21,7 @@ REPEATS = 1
 MAX_EPOCH = 20
 BATCH = 100 # minibatch size
 VALID = 5000 # size of validation set
-SEED = 66478 # None for random seed
+SEED = None#66478 # None for random seed
 PERMUTE = False # permute pixels
 ECHO = True
 
@@ -151,15 +151,66 @@ def my_gate(z):
 
 methods = []
 
+# method 0
+name = "f_f-ml"
+color = "Black"
+hidden = 1024
+dimensions = (n, hidden, m)
+gate_fun = tf.nn.relu
+#loss_fun = losses.expected_cost
+loss_fun = tf.nn.softmax_cross_entropy_with_logits
+#loss_fun = losses.kl_divergence_ml
+model = model_f_f(name, dimensions, gate_fun, loss_fun)
+optimizer = tf.train.MomentumOptimizer(0.15/BATCH, momentum=0.9)
+#optimizer = tf.train.GradientDescentOptimizer(0.1/BATCH)
+method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
+                   data_train_vec, data_valid_vec, data_test_vec)
+methods.append(method)
+
 # method a
-name = "f_f-relu"
+name = "f_f-rl"
 color = "Blue"
 hidden = 1024
 dimensions = (n, hidden, m)
 gate_fun = tf.nn.relu
 loss_fun = losses.expected_cost
+#loss_fun = losses.kl_divergence_rl
+#loss_fun = losses.kl_divergence_ml
 model = model_f_f(name, dimensions, gate_fun, loss_fun)
-optimizer = tf.train.MomentumOptimizer(0.1/BATCH, momentum=0.9)
+optimizer = tf.train.MomentumOptimizer(0.15/BATCH, momentum=0.9)
+#optimizer = tf.train.GradientDescentOptimizer(0.1/BATCH)
+method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
+                   data_train_vec, data_valid_vec, data_test_vec)
+methods.append(method)
+
+# method b
+name = "f_f-kl_rl"
+color = "Green"
+hidden = 1024
+dimensions = (n, hidden, m)
+gate_fun = tf.nn.relu
+#loss_fun = losses.expected_cost
+loss_fun = losses.kl_divergence_rl
+#loss_fun = losses.kl_divergence_ml
+model = model_f_f(name, dimensions, gate_fun, loss_fun)
+optimizer = tf.train.MomentumOptimizer(0.15/BATCH, momentum=0.9)
+#optimizer = tf.train.GradientDescentOptimizer(0.1/BATCH)
+method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
+                   data_train_vec, data_valid_vec, data_test_vec)
+methods.append(method)
+
+# method c
+name = "f_f-kl_ml"
+color = "Red"
+hidden = 1024
+dimensions = (n, hidden, m)
+gate_fun = tf.nn.relu
+#loss_fun = losses.expected_cost
+#loss_fun = losses.kl_divergence_rl
+loss_fun = losses.kl_divergence_ml
+model = model_f_f(name, dimensions, gate_fun, loss_fun)
+optimizer = tf.train.MomentumOptimizer(0.05/BATCH, momentum=0.9)
+#optimizer = tf.train.GradientDescentOptimizer(0.1/BATCH)
 method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
                    data_train_vec, data_valid_vec, data_test_vec)
 methods.append(method)

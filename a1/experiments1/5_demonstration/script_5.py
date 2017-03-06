@@ -27,8 +27,8 @@ PERMUTE = False # permute pixels
 ECHO = True
 
 # save filenames
-FILELABEL = "optim"
-FILETAG = "1b"
+FILELABEL = "demo"
+FILETAG = "5"
 
 # plot bounds
 YMAX_TRAIN = 10000.0
@@ -144,6 +144,9 @@ def methoddef(name, color, model, optimizer,
                  meas.meas_time("train_time") ]
   return method
 
+# leaky Relu
+def my_gate(z):
+  return tf.maximum(0.1*z,z)
 
 # define methods
 
@@ -160,7 +163,7 @@ dimensions = (n1, n2, d0, f1, d1, f2, d2, m)
 gate_fun = tf.nn.relu
 loss_fun = losses.kl_divergence_ml
 model = model_cp_cp_f(name, dimensions, gate_fun, loss_fun)
-optimizer = tf.train.AdamOptimizer(0.1/BATCH)
+optimizer = tf.train.AdamOptimizer(0.05/BATCH)
 method = methoddef(name, color, model, optimizer, xdata_mat, ydata,
                    data_train_mat, data_valid_mat, data_test_mat)
 methods.append(method)

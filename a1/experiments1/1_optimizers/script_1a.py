@@ -1,16 +1,17 @@
 
   # modify paths to match your own set-up
-homepath = "/Users/zhangchi/Desktop/"
+#homepath = "/Users/zhangchi/Desktop/"
+homepath = "/home/ubuntu/src/tensorflow/dl/"
 datapath = homepath + "DeepLearning-Assignment/a1/data1"
-# datapath = homepath + "Documents/cmput656/a1/data1"
 srcpath = homepath + "DeepLearning-Assignment/a1"
-# srcpath = homepath + "Documents/cmput656/a1"
+
 import sys
 sys.path.append(srcpath)
 
 import numpy as np
 import tensorflow as tf
 import util1
+import pickle
 from util1 import measurement as meas
 
 
@@ -146,6 +147,7 @@ def methoddef(name, color, model, optimizer,
 
 methods = []
 
+# method a
 name = "f_f-gd"
 color = "Blue"
 hidden = 1024
@@ -158,10 +160,48 @@ method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
                    data_train_vec, data_valid_vec, data_test_vec)
 methods.append(method)
 
+# method b
+name = "f_f-mom"
+color = "Green"
+hidden = 1024
+dimensions = (n, hidden, m)
+gate_fun = tf.nn.relu
+loss_fun = tf.nn.softmax_cross_entropy_with_logits
+model = model_f_f(name, dimensions, gate_fun, loss_fun)
+optimizer = tf.train.MomentumOptimizer(0.1/BATCH, momentum=0.9)
+method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
+                   data_train_vec, data_valid_vec, data_test_vec)
+methods.append(method)
+
+# method c
+name = "f_f-rms"
+color = "Red"
+hidden = 1024
+dimensions = (n, hidden, m)
+gate_fun = tf.nn.relu
+loss_fun = tf.nn.softmax_cross_entropy_with_logits
+model = model_f_f(name, dimensions, gate_fun, loss_fun)
+optimizer = tf.train.RMSPropOptimizer(0.02/BATCH, momentum=0.9)
+method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
+                   data_train_vec, data_valid_vec, data_test_vec)
+methods.append(method)
+
+# method d
+name = "f_f-alt"
+color = "Magenta"
+hidden = 1024
+dimensions = (n, hidden, m)
+gate_fun = tf.nn.relu
+loss_fun = tf.nn.softmax_cross_entropy_with_logits
+model = model_f_f(name, dimensions, gate_fun, loss_fun)
+optimizer = tf.train.AdamOptimizer(0.1/BATCH)
+method = methoddef(name, color, model, optimizer, xdata_vec, ydata,
+                   data_train_vec, data_valid_vec, data_test_vec)
+methods.append(method)
 
 # run experiment
 
-#methods_use = [methods[0]]
+#methods_use = [methods[3]]
 #methods_use = [methods[1]]
 methods_use = methods
 
@@ -174,5 +214,6 @@ results = util1.experiment.run_methods_list(
 means = util1.experiment.summarize(results) # updates, methods, measures
 util1.experiment.print_results(methods_use, means, sys.stdout, FILETAG)
 util1.experiment.print_results(methods_use, means, FILELABEL, FILETAG)
+pickle.dump( [means, FILELABEL, FILETAG], open( "saveA.p", "wb" ) )
 util1.experiment.plot_results(methods_use, means, FILELABEL, FILETAG)
 

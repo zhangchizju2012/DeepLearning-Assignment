@@ -143,13 +143,32 @@ def methoddef(name, color, model, optimizer,
                  meas.meas_time("train_time") ]
   return method
 
+# leaky Relu
+def my_gate(z):
+  return tf.maximum(0.1*z,z)
 
 # define methods
 
 methods = []
 
 # method a
-name = "cp_cp_f-gd"
+name = "cp_cp_f-mine"
+color = "Black"
+f1 = 5 # filter size (f1 x f1)
+d1 = 64 # filter depth (number of independent filters)
+f2 = 5
+d2 = 64
+dimensions = (n1, n2, d0, f1, d1, f2, d2, m)
+gate_fun = my_gate
+loss_fun = tf.nn.softmax_cross_entropy_with_logits
+model = model_cp_cp_f(name, dimensions, gate_fun, loss_fun)
+optimizer = tf.train.MomentumOptimizer(0.025/BATCH, momentum=0.9)
+method = methoddef(name, color, model, optimizer, xdata_mat, ydata,
+                   data_train_mat, data_valid_mat, data_test_mat)
+methods.append(method)
+
+# method a
+name = "cp_cp_f-relu"
 color = "Blue"
 f1 = 5 # filter size (f1 x f1)
 d1 = 64 # filter depth (number of independent filters)
@@ -159,55 +178,55 @@ dimensions = (n1, n2, d0, f1, d1, f2, d2, m)
 gate_fun = tf.nn.relu
 loss_fun = tf.nn.softmax_cross_entropy_with_logits
 model = model_cp_cp_f(name, dimensions, gate_fun, loss_fun)
-optimizer = tf.train.GradientDescentOptimizer(0.1/BATCH)
+optimizer = tf.train.MomentumOptimizer(0.025/BATCH, momentum=0.9)
 method = methoddef(name, color, model, optimizer, xdata_mat, ydata,
                    data_train_mat, data_valid_mat, data_test_mat)
 methods.append(method)
 
 # method b
-name = "cp_cp_f-mom"
+name = "cp_cp_f-soft"
 color = "Green"
 f1 = 5 # filter size (f1 x f1)
 d1 = 64 # filter depth (number of independent filters)
 f2 = 5
 d2 = 64
 dimensions = (n1, n2, d0, f1, d1, f2, d2, m)
-gate_fun = tf.nn.relu
+gate_fun = tf.nn.softplus
 loss_fun = tf.nn.softmax_cross_entropy_with_logits
 model = model_cp_cp_f(name, dimensions, gate_fun, loss_fun)
-optimizer = tf.train.MomentumOptimizer(0.01/BATCH, momentum=0.9)
+optimizer = tf.train.MomentumOptimizer(0.005/BATCH, momentum=0.9)
 method = methoddef(name, color, model, optimizer, xdata_mat, ydata,
                    data_train_mat, data_valid_mat, data_test_mat)
 methods.append(method)
 
 # method c
-name = "cp_cp_f-rms"
+name = "cp_cp_f-sigm"
 color = "Red"
 f1 = 5 # filter size (f1 x f1)
 d1 = 64 # filter depth (number of independent filters)
 f2 = 5
 d2 = 64
 dimensions = (n1, n2, d0, f1, d1, f2, d2, m)
-gate_fun = tf.nn.relu
+gate_fun = tf.nn.sigmoid
 loss_fun = tf.nn.softmax_cross_entropy_with_logits
 model = model_cp_cp_f(name, dimensions, gate_fun, loss_fun)
-optimizer = tf.train.RMSPropOptimizer(0.002/BATCH, momentum=0.9)
+optimizer = tf.train.MomentumOptimizer(0.015/BATCH, momentum=0.9)
 method = methoddef(name, color, model, optimizer, xdata_mat, ydata,
                    data_train_mat, data_valid_mat, data_test_mat)
 methods.append(method)
 
 # method d
-name = "cp_cp_f-alt"
+name = "cp_cp_f-tanh"
 color = "Magenta"
 f1 = 5 # filter size (f1 x f1)
 d1 = 64 # filter depth (number of independent filters)
 f2 = 5
 d2 = 64
 dimensions = (n1, n2, d0, f1, d1, f2, d2, m)
-gate_fun = tf.nn.relu
+gate_fun = tf.nn.tanh
 loss_fun = tf.nn.softmax_cross_entropy_with_logits
 model = model_cp_cp_f(name, dimensions, gate_fun, loss_fun)
-optimizer = tf.train.AdamOptimizer(0.01/BATCH)
+optimizer = tf.train.MomentumOptimizer(0.015/BATCH, momentum=0.9)
 method = methoddef(name, color, model, optimizer, xdata_mat, ydata,
                    data_train_mat, data_valid_mat, data_test_mat)
 methods.append(method)

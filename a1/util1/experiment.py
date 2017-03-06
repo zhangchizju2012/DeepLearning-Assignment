@@ -97,7 +97,7 @@ def plot_results(methods, mean_results, experiment_name, label):
     #print methods[0].meas[meas].axes[1]
     #print methods[0].meas[meas].axes[2]
     #print methods[0].meas[meas].axes[3]
-    #print xmin, xmax, ymin, ymax
+    print xmin, xmax, ymin, ymax
     f, ax = plt.subplots()
     ax.set_autoscale_on(False)
     ax.set_xlim(left=xmin, right=xmax)
