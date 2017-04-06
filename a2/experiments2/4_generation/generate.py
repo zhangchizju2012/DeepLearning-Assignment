@@ -10,6 +10,7 @@ import tensorflow as tf
 import util2
 import pickle
 from util2 import measurement as meas
+from util2 import wrap_counting, gap_timing
 
 # experimental configuration
 REPEATS = 1
@@ -44,6 +45,45 @@ epoch = len(data_train[0]) // BATCH // STEPS
 xdata = np.zeros([gap], dtype=np.int32)
 ydata = np.zeros([gap], dtype=np.int32)
 
+def printout(label, meas_list, sess, echo):
+  results = np.zeros(len(meas_list))
+  i = 0
+  if echo:
+    print label,
+  for meas in meas_list:
+    #results[i] = meas.eval(sess)
+    loss_total = 0.0
+    X, Y = meas.data
+    gap_timer = gap_timing.gaptimer(meas.epoch, 1)
+    sampler = wrap_counting.runcounter(meas.batch, meas.steps, len(X))
+    cur_state = sess.run(meas.zero_state)
+    num = 0
+    while gap_timer.alive():
+      inds = sampler.next_inds()
+      meas.xdata[:] = X[inds]
+      meas.ydata[:] = Y[inds]
+      meas.feed_dict[meas.init_state] = cur_state
+      cur_loss, cur_state = sess.run((meas.loss, meas.final_state),
+                                     feed_dict=meas.feed_dict)
+      print cur_loss
+      print cur_loss.shape
+      print meas.xdata[:]
+      print len(meas.xdata[:])
+      print meas.ydata[:]
+      count = 0
+      for i in range(400):
+        #print cur_loss[i] == self.ydata[i]
+        if cur_loss[i] == meas.ydata[i]:
+          count += 1
+      print 'same= '+ str(count)
+      loss_total += cur_loss
+      num += 1
+      gap_timer.update()
+    i += 1
+  if echo:
+    print
+  return results
+
 def evaluate_rnn_methods_list(methods, gap_timer, sampler, repeats, save_file, echo=False):
   """Run an experiment over all methods"""
   saver = tf.train.Saver()
@@ -68,7 +108,7 @@ def evaluate_rnn_methods_list(methods, gap_timer, sampler, repeats, save_file, e
           sess.run(var.initializer)
           saver.restore(sess,'/Users/zhangchi/Desktop/DeepLearning-Assignment/a2/experiments2/2_gates/out/2a_gate/2a_gate')
         meas.update(method.meas)
-        results[r,u,m,:] = meas.printout(method.label, method.meas, sess, echo)
+        results[r,u,m,:] = printout(method.label, method.meas, sess, echo)
   return results
 # model architecture
 
@@ -115,14 +155,14 @@ def methoddef(name, color, model, optimizer,
   """method = model + optimizer"""
   method = util2.experiment.method_rnn(
       name, color, model, optimizer, data_train, xdata, ydata)
-  method.meas = [meas.meas_iter(epoch, "step"),
+  method.meas = [#meas.meas_iter(epoch, "step"),
                  meas.meas_rnnloss(model.x, model.y,
                                    model.zero_state, model.init_state,
                                    model.final_state,
                                    data_train, model.predictMine, "predictMine",
                                    BATCH, STEPS,
-                                   axes=[0.0, np.inf, 0.0, YMAX_TRAIN]),
-                 meas.meas_time("epoch_time") ]
+                                   axes=[0.0, np.inf, 0.0, YMAX_TRAIN])]
+                 #meas.meas_time("epoch_time") ]
   return method
 
 
