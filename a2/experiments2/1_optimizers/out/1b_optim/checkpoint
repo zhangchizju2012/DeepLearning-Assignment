@@ -1,0 +1,2 @@
+model_checkpoint_path: "1b_optim"
+all_model_checkpoint_paths: "1b_optim"
