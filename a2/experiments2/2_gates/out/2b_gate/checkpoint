@@ -1,0 +1,2 @@
+model_checkpoint_path: "2b_gate"
+all_model_checkpoint_paths: "2b_gate"
