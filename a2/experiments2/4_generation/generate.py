@@ -8,26 +8,14 @@ sys.path.append(homepath)
 import numpy as np
 import tensorflow as tf
 import util2
-import pickle
 from util2 import measurement as meas
-from util2 import wrap_counting, gap_timing
 
 # experimental configuration
-REPEATS = 1
-MAX_EPOCH = 10
-BATCH = 20 # minibatch size
-STEPS = 20 # rollout length
-ECHO = True
-
-# save filenames
-FILELABEL = "loss"
-FILETAG = "3a"
+BATCH = 1 # minibatch size
+STEPS = 15 # rollout length
 
 # plot bounds
 YMAX_TRAIN = np.inf
-YMAX_VALID = np.inf
-YMAX_TEST  = np.inf
-
 
 # data
 
@@ -45,71 +33,51 @@ epoch = len(data_train[0]) // BATCH // STEPS
 xdata = np.zeros([gap], dtype=np.int32)
 ydata = np.zeros([gap], dtype=np.int32)
 
-def printout(label, meas_list, sess, echo):
-  results = np.zeros(len(meas_list))
-  i = 0
-  if echo:
-    print label,
-  for meas in meas_list:
-    #results[i] = meas.eval(sess)
-    loss_total = 0.0
-    X, Y = meas.data
-    gap_timer = gap_timing.gaptimer(meas.epoch, 1)
-    sampler = wrap_counting.runcounter(meas.batch, meas.steps, len(X))
-    cur_state = sess.run(meas.zero_state)
-    num = 0
-    while gap_timer.alive():
-      inds = sampler.next_inds()
-      meas.xdata[:] = X[inds]
-      meas.ydata[:] = Y[inds]
-      meas.feed_dict[meas.init_state] = cur_state
-      cur_loss, cur_state = sess.run((meas.loss, meas.final_state),
-                                     feed_dict=meas.feed_dict)
-      print cur_loss
-      print cur_loss.shape
-      print meas.xdata[:]
-      print len(meas.xdata[:])
-      print meas.ydata[:]
-      count = 0
-      for i in range(400):
-        #print cur_loss[i] == self.ydata[i]
-        if cur_loss[i] == meas.ydata[i]:
-          count += 1
-      print 'same= '+ str(count)
-      loss_total += cur_loss
-      num += 1
-      gap_timer.update()
-    i += 1
-  if echo:
-    print
-  return results
+def numberToString(number):
+  string = ''
+  for item in number:
+    string += id2char[item]
+  return string
 
-def evaluate_rnn_methods_list(methods, gap_timer, sampler, repeats, save_file, echo=False):
+def stringToNumber(string):
+  number = []
+  for item in string:
+    if item in char2id:
+      number.append(char2id[item])
+    else:
+      number.append(0)
+  return number
+
+def generate(methods,variables_file,seed_string,length):
   """Run an experiment over all methods"""
   saver = tf.train.Saver()
   tf.get_default_graph().finalize()
-  num_meas = 0
-  for method in methods:
-    if len(method.meas) > num_meas:
-      num_meas = len(method.meas)
-  results = np.zeros([repeats, gap_timer.maxupdate+1, len(methods), num_meas])
   with tf.Session() as sess:
-    for r in range(repeats):
-      print "repeat ", r
-      count = 0
-      for (m, method) in enumerate(methods):
-        if count == 0:
-          count += 1
-          continue
-        meas.reset(method.meas)
-        gap_timer.reset()
-        u = 0
-        for var in tf.global_variables():
-          sess.run(var.initializer)
-          saver.restore(sess,'/Users/zhangchi/Desktop/DeepLearning-Assignment/a2/experiments2/2_gates/out/2a_gate/2a_gate')
-        meas.update(method.meas)
-        results[r,u,m,:] = printout(method.label, method.meas, sess, echo)
-  return results
+    for method in methods:
+      meas.reset(method.meas)
+      for var in tf.global_variables():
+        sess.run(var.initializer)
+        saver.restore(sess,variables_file)        
+      meas.update(method.meas)
+      for mea in method.meas:
+        cur_state = sess.run(mea.zero_state)
+        X = seed_string
+        Y = " " * STEPS
+        mea.ydata[:] = stringToNumber(Y)
+        start = len(X) - STEPS
+        while len(X) <= length:
+          #print start
+          mea.xdata[:] = stringToNumber(X[start:start+STEPS])
+          mea.feed_dict[mea.init_state] = cur_state
+          cur_loss, cur_state = sess.run((mea.loss, mea.final_state),
+                                         feed_dict=mea.feed_dict)
+          probability = []
+          for item in cur_loss[-1]:
+            probability.append(item/sum(cur_loss[-1]))
+          temp = np.random.choice(np.arange(50),p=probability)
+          X += numberToString([temp])
+          start += 1
+        print X
 # model architecture
 
 class model_rnn():
@@ -155,92 +123,84 @@ def methoddef(name, color, model, optimizer,
   """method = model + optimizer"""
   method = util2.experiment.method_rnn(
       name, color, model, optimizer, data_train, xdata, ydata)
-  method.meas = [#meas.meas_iter(epoch, "step"),
-                 meas.meas_rnnloss(model.x, model.y,
+  method.meas = [meas.meas_rnnloss(model.x, model.y,
                                    model.zero_state, model.init_state,
                                    model.final_state,
-                                   data_train, model.predictMine, "predictMine",
+                                   data_train, model.y_hat, "y_hat",
                                    BATCH, STEPS,
                                    axes=[0.0, np.inf, 0.0, YMAX_TRAIN])]
-                 #meas.meas_time("epoch_time") ]
   return method
 
 
 # define methods
+def main():
+    methods = []
+    
+    loss_kl_base2 = (lambda zhat, y:
+        tf.nn.sparse_softmax_cross_entropy_with_logits(zhat, y) / np.log(2))
+    
+    '''
+    name = "RNN2_relu"
+    color = "Blue"
+      # model
+    hidden = 800
+    depth = 2
+    cell_type = util2.rnn_simple.SimpleRNNCell
+    gate_fun = tf.nn.relu
+    loss_fun = loss_kl_base2
+    dimensions = hidden, depth, vocab
+    model = model_rnn(name, cell_type, dimensions, gate_fun, loss_fun)
+      # optimizer
+    init_step = 0.5
+    step_size_fun = (lambda global_step:
+                        util2.step_sizers.exp_stair_step(
+                           init_step, global_step, steps_per_epoch=epoch, delay=4))
+    optim_fun = (lambda stepsize:
+                    util2.optimizers.ClippedGradientDescentOptimizer(
+                        stepsize, clip_norm=1.0))
+    optimizer = util2.experiment.optimizer(optim_fun, step_size_fun)
+      # method
+    method = methoddef(name, color, model, optimizer, xdata, ydata,
+                       data_train, data_valid, data_test)
+    methods.append(method)
+    '''
+    name = "LSTM_base"
+    color = "Red"
+      # model
+    hidden = 200
+    depth = 2
+    cell_type = util2.rnn_simple.SimpleLSTMCell
+    gate_fun = tf.nn.tanh
+    loss_fun = loss_kl_base2
+    dimensions = hidden, depth, vocab
+    model = model_rnn(name, cell_type, dimensions, gate_fun, loss_fun)
+      # optimizer
+    init_step = 10.
+    step_size_fun = (lambda global_step:
+                        util2.step_sizers.exp_stair_step(
+                           init_step, global_step, steps_per_epoch=epoch, delay=4))
+    optim_fun = (lambda stepsize:
+                    util2.optimizers.ClippedGradientDescentOptimizer(
+                        stepsize, clip_norm=0.2))
+    optimizer = util2.experiment.optimizer(optim_fun, step_size_fun)
+      # method
+    method = methoddef(name, color, model, optimizer, xdata, ydata,
+                       data_train, data_valid, data_test)
+    methods.append(method)
+    
+    # run experiment
+    
+    #methods_use = [methods[1]]
+    methods_use = methods
+    
+    variables_file = '/Users/zhangchi/Desktop/DeepLearning-Assignment/a2/experiments2/3_losses/out/3b_loss/3b_loss'
+    #variables_file = '/Users/zhangchi/Desktop/DeepLearning-Assignment/a2/experiments2/2_gates/out/2c_gate/2c_gate'
+    #seed_string = "after the next crash"
+    #seed_string = "the president denied"
+    #seed_string = "money, its a hit"
+    seed_string = "the financial sector"
+    length = 256
+    generate(methods_use,variables_file,seed_string,length)
+    
+main()
 
-methods = []
-
-loss_kl_base2 = (lambda zhat, y:
-    tf.nn.sparse_softmax_cross_entropy_with_logits(zhat, y) / np.log(2))
-
-name = "RNN1_tanh"
-color = "Red"
-  # model
-hidden = 800
-depth = 1
-cell_type = util2.rnn_simple.SimpleRNNCell
-gate_fun = tf.nn.tanh
-loss_fun = loss_kl_base2
-dimensions = hidden, depth, vocab
-model = model_rnn(name, cell_type, dimensions, gate_fun, loss_fun)
-  # optimizer
-init_step = 0.5
-step_size_fun = (lambda global_step:
-                    util2.step_sizers.exp_stair_step(
-                       init_step, global_step, steps_per_epoch=epoch, delay=4))
-optim_fun = (lambda stepsize:
-                util2.optimizers.ClippedGradientDescentOptimizer(
-                    stepsize, clip_norm=1.0))
-optimizer = util2.experiment.optimizer(optim_fun, step_size_fun)
-  # method
-method = methoddef(name, color, model, optimizer, xdata, ydata,
-                   data_train, data_valid, data_test)
-methods.append(method)
-
-
-name = "RNN1_relu"
-color = "Blue"
-  # model
-hidden = 800
-depth = 1
-cell_type = util2.rnn_simple.SimpleRNNCell
-gate_fun = tf.nn.relu
-loss_fun = loss_kl_base2
-dimensions = hidden, depth, vocab
-model = model_rnn(name, cell_type, dimensions, gate_fun, loss_fun)
-  # optimizer
-init_step = 0.5
-step_size_fun = (lambda global_step:
-                    util2.step_sizers.exp_stair_step(
-                       init_step, global_step, steps_per_epoch=epoch, delay=4))
-optim_fun = (lambda stepsize:
-                util2.optimizers.ClippedGradientDescentOptimizer(
-                    stepsize, clip_norm=1.0))
-optimizer = util2.experiment.optimizer(optim_fun, step_size_fun)
-  # method
-method = methoddef(name, color, model, optimizer, xdata, ydata,
-                   data_train, data_valid, data_test)
-methods.append(method)
-
-# run experiment
-
-#methods_use = [methods[1]]
-methods_use = methods
-
-out_name = FILETAG + "_" + FILELABEL
-out_dir = "out/" + out_name
-if not os.path.exists(out_dir):
-  os.makedirs(out_dir)
-save_file = out_dir + "/" + out_name
-
-gap_timer = util2.gap_timing.gaptimer(epoch, MAX_EPOCH)
-sampler = util2.wrap_counting.runcounter(BATCH, STEPS, len(data_train[0]))
-
-results = evaluate_rnn_methods_list(
-    methods_use, gap_timer, sampler, 1, save_file, False)
-
-means = util2.experiment.summarize(results) # updates, methods, measures
-util2.experiment.print_results(methods_use, means, sys.stdout, None, None)
-util2.experiment.print_results(methods_use, means, out_dir, FILELABEL, FILETAG)
-pickle.dump( [means, out_dir, FILELABEL, FILETAG], open( "saveA.p", "wb" ) )
-util2.experiment.plot_results(methods_use, means, out_dir, FILELABEL, FILETAG)
